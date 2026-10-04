@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventory Tracker</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg:#f4f4f2; --surface:#fcfcfb; --border:#e3e2dd; --grid:#ecebe7;
+  --text:#0b0b0b; --text2:#52514e; --muted:#85847e;
+  --s1:#2a78d6; --s2:#eb6834; --good:#0a7d3c; --bad:#c62828; --accent:#2a78d6;
+}
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark;
+  --bg:#111110; --surface:#1a1a19; --border:#2e2e2b; --grid:#262624;
+  --text:#fff; --text2:#c3c2b7; --muted:#8f8e86;
+  --s1:#3987e5; --s2:#d95926; --good:#3fb96f; --bad:#ef6b6b; --accent:#3987e5; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+.wrap { max-width:1180px; margin:0 auto; padding:20px 16px 60px; }
+header { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:16px; }
+h1 { font-size:20px; margin:0; }
+h2 { font-size:14px; margin:0 0 2px; }
+.sub { color:var(--text2); font-size:12px; margin-bottom:10px; }
+nav { display:flex; gap:4px; }
+nav button, .seg button { border:1px solid var(--border); background:var(--surface); color:var(--text2); padding:6px 12px; cursor:pointer; font:inherit; border-radius:6px; }
+nav button.on, .seg button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.filters { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+select, input { font:inherit; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); }
+.seg { display:flex; } .seg button { border-radius:0; margin-left:-1px; } .seg button:first-child { border-radius:6px 0 0 6px; margin:0; } .seg button:last-child { border-radius:0 6px 6px 0; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-bottom:16px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; }
+.kpi .l { color:var(--text2); font-size:12px; } .kpi .v { font-size:24px; font-weight:600; margin:2px 0; font-variant-numeric:tabular-nums; }
+.kpi .d { font-size:12px; color:var(--muted); } .up { color:var(--good); } .down { color:var(--bad); }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:12px; margin-bottom:12px; }
+@media (max-width:480px) { .grid2 { grid-template-columns:1fr; } }
+.legend { display:flex; gap:14px; font-size:12px; color:var(--text2); margin-bottom:6px; }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; }
+svg { display:block; width:100%; height:auto; overflow:visible; }
+svg text { fill:var(--muted); font-size:11px; }
+.tt { position:fixed; pointer-events:none; background:var(--surface); border:1px solid var(--border); box-shadow:0 4px 14px #0003; border-radius:8px; padding:8px 10px; font-size:12px; display:none; z-index:9; }
+.tt b { display:block; margin-bottom:3px; } .tt span { display:flex; justify-content:space-between; gap:16px; }
+table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+th, td { text-align:right; padding:7px 8px; border-bottom:1px solid var(--border); white-space:nowrap; }
+th:first-child, td:first-child, th.l, td.l { text-align:left; }
+th { color:var(--text2); font-weight:500; font-size:12px; cursor:pointer; user-select:none; }
+.scroll { overflow-x:auto; }
+.pill { font-size:11px; padding:1px 7px; border-radius:99px; border:1px solid var(--border); }
+.low { color:var(--bad); font-weight:600; }
+form { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; align-items:end; }
+label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--text2); }
+.btn { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:8px 14px; cursor:pointer; font:inherit; }
+.btn.alt { background:var(--surface); color:var(--text2); border:1px solid var(--border); }
+.msg { font-size:12px; margin-top:8px; min-height:16px; } .msg.err { color:var(--bad); } .msg.ok { color:var(--good); }
+.hidden { display:none; }
+.fl { font-size:11px; color:var(--text2); display:flex; flex-direction:column; gap:3px; }
+.row { display:flex; gap:4px; } .row input { width:230px; } .row .btn { padding:6px 10px; }
+.itemhead { display:flex; flex-wrap:wrap; gap:6px 24px; align-items:baseline; margin-bottom:12px; }
+.itemhead h2 { font-size:16px; margin:0; } .itemhead span { color:var(--text2); font-size:12px; }
+.itemhead b { color:var(--text); font-size:14px; }
+.del { background:none; border:0; color:var(--muted); cursor:pointer; }
+.del:hover { color:var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Inventory Tracker</h1>
+    <nav id="tabs">
+      <button data-t="dash" class="on">Dashboard</button>
+      <button data-t="entry">Add entry</button>
+      <button data-t="txn">Transactions</button>
+    </nav>
+  </header>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section id="dash">
+    <div class="filters">
+      <label class="fl">Date range<div class="seg" id="period">
+        <button data-p="yesterday">Yesterday</button>
+        <button data-p="last7">Last 7d</button>
+        <button data-p="last30" class="on">Last 30d</button>
+        <button data-p="last_month">Last month</button>
+        <button data-p="last90">Last 90d</button>
+        <button data-p="all">All</button>
+      </div></label>
+      <label class="fl">Item (type a code or name)<span class="row"><input id="item" list="itemList" placeholder="All items" autocomplete="off"><button class="btn alt" id="clearItem" title="Show all items">✕</button></span></label>
+      <label class="fl">Chart bucket size<div class="seg" id="group">
+        <button data-g="day" class="on">Daily</button>
+        <button data-g="week">Weekly</button>
+        <button data-g="month">Monthly</button>
+      </div></label>
+    </div>
+    <div class="sub" id="rangeLabel"></div>
+    <div id="itemHead" class="hidden"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <div class="card"><h2>Revenue and profit over time</h2><div class="sub">Same ₹ scale, bucketed by the grouping above</div>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Revenue</span><span><i style="background:var(--s2)"></i>Profit</span></div>
+        <div id="chTime"></div></div>
+      <div class="card"><h2>Purchases vs units sold</h2><div class="sub">Money spent restocking, in ₹ (left); see table for units</div>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Purchase spend</span></div>
+        <div id="chBuy"></div></div>
+    </div>
+    <div class="grid2" id="rowItemCharts">
+      <div class="card"><h2>Profit by item</h2><div class="sub">Selected period, ₹</div><div id="chItem"></div></div>
+      <div class="card"><h2>Days of stock cover</h2><div class="sub">Stock ÷ avg daily sales in period. Red = under 7 days, reorder soon</div><div id="chCover"></div></div>
+    </div>
+
+    <div class="card">
+      <h2 id="tblTitle">Item breakdown</h2><div class="sub">Click a header to sort. Click a row to filter the dashboard to that item.</div>
+      <div class="scroll"><table id="tbl"></table></div>
+    </div>
+  </section>
+
+  <!-- ============ ENTRY ============ -->
+  <section id="entry" class="hidden">
+    <div class="grid2">
+      <div class="card"><h2>Record a purchase</h2><div class="sub">Stock coming in</div>
+        <form id="fPur"><label>Item code<input name="item_code" list="itemList" required placeholder="type to search" autocomplete="off"></label>
+          <label>Date<input type="date" name="date" required></label>
+          <label>Quantity<input type="number" name="quantity" min="1" required></label>
+          <label>Unit cost (₹)<input type="number" name="price" min="0" step="0.01" required></label>
+          <button class="btn">Add purchase</button></form><div class="msg" id="mPur"></div></div>
+      <div class="card"><h2>Record a sale</h2><div class="sub">Stock going out (blocked if it exceeds stock on hand)</div>
+        <form id="fSale"><label>Item code<input name="item_code" list="itemList" required placeholder="type to search" autocomplete="off"></label>
+          <label>Date<input type="date" name="date" required></label>
+          <label>Quantity<input type="number" name="quantity" min="1" required></label>
+          <label>Unit price (₹)<input type="number" name="price" min="0" step="0.01" required></label>
+          <button class="btn">Add sale</button></form><div class="msg" id="mSale"></div></div>
+    </div>
+    <div class="card"><h2>New item</h2>
+      <form id="fItem"><label>Item code<input name="item_code" required placeholder="SKU-4001"></label>
+        <label>Name<input name="name" required></label><label>Category<input name="category" placeholder="General"></label>
+        <button class="btn alt">Add item</button></form><div class="msg" id="mItem"></div></div>
+  </section>
+
+  <!-- ============ TRANSACTIONS ============ -->
+  <section id="txn" class="hidden">
+    <div class="card"><h2>Latest 200 transactions</h2><div class="sub">Use the dashboard item filter to narrow this list. Mistakes can be deleted.</div>
+      <div class="sub">Backups: <a href="/api/export.zip">Download all data (CSV)</a> · <a href="/api/export.db">Download database file</a>. A copy is also saved automatically every day in the <code>backups</code> folder, plus one before every delete.</div>
+      <div class="scroll"><table id="txnTbl"></table></div></div>
+  </section>
+</div>
+<datalist id="itemList"></datalist>
+<div class="tt" id="tt"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const st = { period:'last30', group:'day', item:'' };
+const inr = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const pct = n => (n*100).toFixed(1) + '%';
+const api = (u, opt) => fetch(u, opt).then(r => r.json());
+const post = (u, body) => api(u, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+const qs = () => `period=${st.period}&item=${encodeURIComponent(st.item)}&group=${st.group}`;
+let items = [], itemStats = [], sortKey = 'profit', sortDir = -1;
+
+/* ---------- tooltip ---------- */
+const tt = $('#tt');
+function showTT(e, html) { tt.innerHTML = html; tt.style.display = 'block';
+  const w = tt.offsetWidth; tt.style.left = Math.min(e.clientX + 14, innerWidth - w - 8) + 'px'; tt.style.top = (e.clientY + 14) + 'px'; }
+const hideTT = () => tt.style.display = 'none';
+
+/* ---------- tiny SVG chart helpers ---------- */
+function niceMax(v) { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)); const m = [1,2,2.5,5,10].find(x => x*p >= v); return m*p; }
+const short = n => Math.abs(n) >= 1e5 ? (n/1e5).toFixed(1).replace(/\.0$/,'') + 'L' : Math.abs(n) >= 1e3 ? (n/1e3).toFixed(0) + 'k' : Math.round(n);
+const fmtB = b => st.group === 'month' ? b.slice(0,7) : b.slice(5);
+
+function frame(W, H, ml, mt, mr, mb, ymax) {
+  const iw = W-ml-mr, ih = H-mt-mb; let g = '';
+  for (let i = 0; i <= 4; i++) { const y = mt + ih - ih*i/4;
+    g += `<line x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}" stroke="var(--grid)"/><text x="${ml-6}" y="${y+4}" text-anchor="end">${short(ymax*i/4)}</text>`; }
+  return { iw, ih, g };
+}
+
+function lineChart(el, rows, series) {
+  if (!rows.length) { el.innerHTML = '<div class="sub">No data in this range.</div>'; return; }
+  const W = 560, H = 240, ml = 44, mt = 8, mr = 10, mb = 24;
+  const ymax = niceMax(Math.max(...rows.flatMap(r => series.map(s => r[s.k]))));
+  const { iw, ih, g } = frame(W, H, ml, mt, mr, mb, ymax);
+  const X = i => ml + (rows.length === 1 ? iw/2 : iw*i/(rows.length-1)), Y = v => mt + ih - ih*v/ymax;
+  let svg = g;
+  const step = Math.ceil(rows.length / 7);
+  rows.forEach((r, i) => { if (i % step === 0) svg += `<text x="${X(i)}" y="${H-6}" text-anchor="middle">${fmtB(r.bucket)}</text>`; });
+  series.forEach(s => {
+    svg += `<polyline fill="none" stroke="${s.c}" stroke-width="2" stroke-linejoin="round" points="${rows.map((r,i) => X(i)+','+Y(r[s.k])).join(' ')}"/>`;
+    const last = rows.length - 1; // direct label at the line end
+    svg += `<circle cx="${X(last)}" cy="${Y(rows[last][s.k])}" r="4" fill="${s.c}" stroke="var(--surface)" stroke-width="2"/>`;
+  });
+  svg += `<line id="xh" y1="${mt}" y2="${mt+ih}" stroke="var(--muted)" stroke-dasharray="3 3" style="display:none"/>
+          <rect x="${ml}" y="${mt}" width="${iw}" height="${ih}" fill="transparent" id="hit"/>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${svg}</svg>`;
+  const xh = el.querySelector('#xh'), hit = el.querySelector('#hit'), box = el.querySelector('svg');
+  hit.onmousemove = e => {
+    const r = box.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(rows.length-1, Math.round((x-ml)/iw*(rows.length-1))));
+    xh.setAttribute('x1', X(i)); xh.setAttribute('x2', X(i)); xh.style.display = '';
+    showTT(e, `<b>${rows[i].bucket}</b>` + series.map(s => `<span><span><i style="display:inline-block;width:8px;height:8px;background:${s.c};border-radius:2px;margin-right:6px"></i>${s.n}</span><b style="margin:0">${inr(rows[i][s.k])}</b></span>`).join(''));
+  };
+  hit.onmouseleave = () => { xh.style.display = 'none'; hideTT(); };
+}
+
+function barChart(el, rows, color, tipFn) { // rows: [{label, value, color?}]
+  if (!rows.length) { el.innerHTML = '<div class="sub">No data in this range.</div>'; return; }
+  const W = 560, H = 240, ml = 44, mt = 8, mr = 10, mb = 24;
+  const ymax = niceMax(Math.max(...rows.map(r => r.value), 0)); const { iw, ih, g } = frame(W, H, ml, mt, mr, mb, ymax);
+  const slot = iw / rows.length, bw = Math.min(28, slot - 2);
+  let svg = g;
+  const step = Math.ceil(rows.length / 10);
+  rows.forEach((r, i) => {
+    const h = Math.max(0, ih * r.value / ymax), x = ml + slot*i + (slot-bw)/2, y = mt + ih - h;
+    svg += `<path data-i="${i}" fill="${r.color || color}" d="M${x},${mt+ih} V${y+4} Q${x},${y} ${x+4},${y} H${x+bw-4} Q${x+bw},${y} ${x+bw},${y+4} V${mt+ih} Z"/>`;
+    svg += `<rect data-i="${i}" x="${ml+slot*i}" y="${mt}" width="${slot}" height="${ih}" fill="transparent"/>`;
+    if (i % step === 0) svg += `<text x="${x+bw/2}" y="${H-6}" text-anchor="middle">${r.label}</text>`;
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${svg}</svg>`;
+  el.querySelectorAll('rect[data-i]').forEach(n => {
+    n.onmousemove = e => showTT(e, tipFn(rows[+n.dataset.i])); n.onmouseleave = hideTT; });
+}
+
+/* ---------- dashboard ---------- */
+function delta(cur, prev, invert) {
+  if (!prev) return '<span class="d">no prior data</span>';
+  const ch = (cur - prev) / Math.abs(prev), good = invert ? ch < 0 : ch > 0;
+  return `<span class="d ${good ? 'up' : 'down'}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch*100).toFixed(1)}% vs previous period</span>`;
+}
+
+async function loadDash() {
+  const [sum, ts, stats] = await Promise.all([api('/api/summary?' + qs()), api('/api/timeseries?' + qs()), api('/api/item-stats?period=' + st.period + '&item=' + encodeURIComponent(st.item))]);
+  const c = sum.current, p = sum.previous;
+  $('#rangeLabel').textContent = `Showing ${sum.range[0]} → ${sum.range[1]}. “Previous” = the equal-length period right before it (${sum.prev_range[0]} → ${sum.prev_range[1]}).` + (st.item ? ` Item: ${st.item}.` : ' All items.');
+  const k = (l, v, d) => `<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div>${d}</div>`;
+  $('#kpis').innerHTML =
+    k('Revenue', inr(c.revenue), delta(c.revenue, p.revenue)) +
+    k('Profit', inr(c.profit), delta(c.profit, p.profit)) +
+    k('Margin', pct(c.margin), `<span class="d">prev ${pct(p.margin)}</span>`) +
+    k('Units sold', c.units_sold.toLocaleString('en-IN'), delta(c.units_sold, p.units_sold)) +
+    k('Purchase spend', inr(c.purchase_spend), `<span class="d">${c.units_bought.toLocaleString('en-IN')} units bought</span>`) +
+    k('Stock on hand', c.stock_units.toLocaleString('en-IN') + ' units', `<span class="d">worth ${inr(c.stock_value)} at cost</span>`);
+
+  lineChart($('#chTime'), ts, [{k:'revenue', n:'Revenue', c:'var(--s1)'}, {k:'profit', n:'Profit', c:'var(--s2)'}]);
+  barChart($('#chBuy'), ts.map(r => ({label:fmtB(r.bucket), value:r.purchases, sold:r.units, b:r.bucket})), 'var(--s1)',
+    r => `<b>${r.b}</b><span><span>Purchase spend</span><b style="margin:0">${inr(r.value)}</b></span><span><span>Units sold</span><b style="margin:0">${r.sold}</b></span>`);
+
+  itemStats = stats;
+  const one = !!st.item && stats.length === 1, r0 = stats[0];
+  $('#itemHead').classList.toggle('hidden', !one);
+  $('#rowItemCharts').classList.toggle('hidden', one);
+  $('#tblTitle').textContent = one ? 'This item' : 'Item breakdown';
+  if (one) {
+    const it = items.find(i => i.item_code === st.item);
+    $('#itemHead').innerHTML = `<div class="card itemhead"><h2>${r0.item_code} · ${r0.name}</h2><span>${r0.category}</span>
+      <span>Stock <b class="${r0.days_cover != null && r0.days_cover < 7 ? 'low' : ''}">${r0.stock} units</b></span>
+      <span>Days of cover <b>${r0.days_cover ?? '—'}</b></span><span>Stock value <b>${inr(r0.stock_value)}</b></span>
+      <span>Bought in period <b>${r0.units_bought}</b></span></div>`;
+  }
+  const byProfit = [...stats].sort((a, b) => b.profit - a.profit);
+  barChart($('#chItem'), byProfit.map(r => ({label:r.item_code.replace('SKU-',''), value:Math.max(0, r.profit), r})), 'var(--s1)',
+    o => `<b>${o.r.name}</b><span><span>Profit</span><b style="margin:0">${inr(o.r.profit)}</b></span><span><span>Margin</span><b style="margin:0">${pct(o.r.margin)}</b></span><span><span>Revenue</span><b style="margin:0">${inr(o.r.revenue)}</b></span>`);
+  const cover = [...stats].filter(r => r.days_cover != null).sort((a, b) => a.days_cover - b.days_cover);
+  barChart($('#chCover'), cover.map(r => ({label:r.item_code.replace('SKU-',''), value:r.days_cover, r, color:r.days_cover < 7 ? 'var(--bad)' : 'var(--s1)'})), 'var(--s1)',
+    o => `<b>${o.r.name}</b><span><span>Days of cover</span><b style="margin:0">${o.r.days_cover}</b></span><span><span>Stock</span><b style="margin:0">${o.r.stock} units</b></span>${o.r.days_cover < 7 ? '<span><span class="low">⚠ Reorder soon</span></span>' : ''}`);
+  drawTable();
+}
+
+function drawTable() {
+  const cols = [['item_code','Code'],['name','Item'],['units_sold','Sold'],['revenue','Revenue'],['profit','Profit'],['margin','Margin'],['units_bought','Bought'],['stock','Stock'],['stock_value','Stock value'],['days_cover','Days cover']];
+  const rows = [...itemStats].sort((a, b) => ((a[sortKey] ?? -1) > (b[sortKey] ?? -1) ? 1 : -1) * sortDir);
+  const f = { revenue:inr, profit:inr, stock_value:inr, margin:pct };
+  $('#tbl').innerHTML = '<tr>' + cols.map(([k,l]) => `<th data-k="${k}" class="${k==='name'?'l':''}">${l}${k===sortKey ? (sortDir>0?' ▲':' ▼') : ''}</th>`).join('') + '</tr>' +
+    rows.map(r => `<tr data-c="${r.item_code}" style="cursor:pointer">` + cols.map(([k]) => {
+      const v = r[k], t = v == null ? '—' : (f[k] ? f[k](v) : v);
+      return `<td class="${k==='name'?'l':''} ${k==='days_cover' && v != null && v < 7 ? 'low' : ''} ${k==='profit' && v < 0 ? 'low' : ''}">${t}</td>`; }).join('') + '</tr>').join('');
+  $('#tbl').querySelectorAll('th').forEach(th => th.onclick = () => { sortDir = sortKey === th.dataset.k ? -sortDir : -1; sortKey = th.dataset.k; drawTable(); });
+  $('#tbl').querySelectorAll('tr[data-c]').forEach(tr => tr.onclick = () => { setItem(tr.dataset.c); scrollTo({top:0, behavior:'smooth'}); });
+}
+
+/* ---------- transactions ---------- */
+async function loadTxn() {
+  const rows = await api('/api/transactions?item=' + encodeURIComponent(st.item));
+  $('#txnTbl').innerHTML = '<tr><th>Date</th><th class="l">Type</th><th class="l">Item</th><th>Qty</th><th>Unit price</th><th>Total</th><th></th></tr>' +
+    rows.map(r => `<tr><td>${r.date}</td><td class="l"><span class="pill">${r.type}</span></td><td class="l">${r.item_code}</td><td>${r.qty}</td><td>${inr(r.price)}</td><td>${inr(r.qty*r.price)}</td>
+      <td><button class="del" title="Delete" data-k="${r.type==='sale'?'sales':'purchases'}" data-id="${r.id}">✕</button></td></tr>`).join('');
+  $('#txnTbl').querySelectorAll('.del').forEach(b => b.onclick = async () => {
+    if (confirm('Delete this entry?')) { await api(`/api/${b.dataset.k}/${b.dataset.id}`, {method:'DELETE'}); loadTxn(); refreshItems(); } });
+}
+
+/* ---------- entry forms ---------- */
+function wire(formId, msgId, url) {
+  const f = $(formId), m = $(msgId);
+  f.date && (f.date.value = new Date(Date.now() - 864e5).toISOString().slice(0, 10)); // default: yesterday
+  f.onsubmit = async e => { e.preventDefault();
+    const body = Object.fromEntries(new FormData(f));
+    if (f.item_code.list && !items.some(i => i.item_code === body.item_code.trim())) {
+      m.className = 'msg err'; m.textContent = 'Unknown item code. Pick one from the list, or add it under "New item".'; return; }
+    body.item_code = body.item_code.trim();
+    const r = await post(url, body);
+    m.className = 'msg ' + (r.error ? 'err' : 'ok'); m.textContent = r.error || 'Saved ✓';
+    if (!r.error) { f.quantity && (f.quantity.value = ''); f.price && (f.price.value = ''); refreshItems(); } };
+}
+async function refreshItems() {
+  items = await api('/api/items');
+  $('#itemList').innerHTML = items.map(i => `<option value="${i.item_code}">${i.name} (stock ${i.stock})</option>`).join('');
+}
+function setItem(code) { st.item = code; $('#item').value = code; loadDash(); }
+
+/* ---------- wiring ---------- */
+$('#tabs').onclick = e => { const t = e.target.dataset.t; if (!t) return;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b === e.target));
+  ['dash','entry','txn'].forEach(s => $('#'+s).classList.toggle('hidden', s !== t));
+  if (t === 'dash') loadDash(); if (t === 'txn') loadTxn(); };
+function seg(id, key, attr) { $(id).onclick = e => { const v = e.target.dataset[attr]; if (!v) return;
+  st[key] = v; $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b === e.target)); loadDash(); }; }
+seg('#period', 'period', 'p'); seg('#group', 'group', 'g');
+$('#item').onchange = e => { const v = e.target.value.trim().toUpperCase();
+  if (!v) return setItem('');
+  const hit = items.find(i => i.item_code.toUpperCase() === v) || items.find(i => i.name.toLowerCase() === e.target.value.trim().toLowerCase());
+  if (hit) setItem(hit.item_code); else { alert('No item with code "' + e.target.value + '"'); e.target.value = st.item; } };
+$('#clearItem').onclick = () => setItem('');
+wire('#fPur', '#mPur', '/api/purchases'); wire('#fSale', '#mSale', '/api/sales'); wire('#fItem', '#mItem', '/api/items');
+refreshItems().then(loadDash);
+</script>
+</body>
+</html>
