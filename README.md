@@ -73,3 +73,4 @@ Both go to your browser's Downloads folder.
 3. Start the app again.
 
 **Limit:** `backups/` is on the same computer as the database. If the disk fails or the laptop is lost, both are lost. Now and then, copy `backups/` or a downloaded export to cloud storage or a USB drive. To change the backup folder, edit `BACKUP_DIR` in `db.py`.
+# inventory-tracker
