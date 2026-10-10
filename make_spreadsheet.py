@@ -43,10 +43,10 @@ def entry_sheet(ws, headers, samples):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:E{ROWS + 1}"
-    dv = DataValidation(type="list", formula1=f"=Dashboard!$A${FIRST}:$A${LAST}",
+    dv = DataValidation(type="list", formula1=f"=Dashboard!$P${FIRST}:$P${LAST}",
                         allow_blank=True, showErrorMessage=True,
                         errorTitle="Unknown product",
-                        error="Add the product to the Dashboard product list first.")
+                        error="Add the product to the Dashboard product list (column P) first.")
     ws.add_data_validation(dv)
     dv.add(f"A2:A{ROWS + 1}")
     dvd = DataValidation(type="date", operator="greaterThan", formula1="36526",
@@ -81,7 +81,7 @@ PERIODS = ["All time", "Today", "Yesterday", "Last 7 days", "Last 30 days",
            "This month", "Last month", "This year", "Custom range"]
 dash["A1"] = "Inventory Dashboard"
 dash["A1"].font = Font(bold=True, size=18, color="1F4E78")
-dash["A2"] = ("Type product names in the yellow column (A). Everything else is calculated "
+dash["A2"] = ("Type product names once in the yellow list in column P. Everything else is calculated "
               "from the Purchases and Sales sheets. Names must match exactly.")
 dash["A2"].font = Font(italic=True, color="666666")
 
@@ -114,6 +114,18 @@ dash["F5"] = (f'=MAX(1,MIN($D$5,TODAY())-MAX($B$5,MIN(Purchases!$B$2:$B${ROWS + 
 dash["F5"].number_format = "0"
 dash["G5"] = "(Days Stock Lasts = stock on hand / average units sold per day in this period)"
 dash["G5"].font = Font(italic=True, color="888888")
+dash["A6"], dash["B6"] = "Item", "All items"
+dash["A6"].font = Font(bold=True, color="666666")
+dash["B6"].fill, dash["B6"].border, dash["B6"].font = input_fill, box, Font(bold=True)
+dash["P8"], dash["Q8"] = "Product list (type here)", "Item options"
+for ref in ("P8", "Q8"):
+    dash[ref].fill, dash[ref].font = head_fill, head_font
+dash["Q9"] = "All items"
+for k in range(SLOTS):
+    dash.cell(FIRST + 1 + k, 17, f'=IF($P{FIRST + k}="","",$P{FIRST + k})')
+dvi = DataValidation(type="list", allow_blank=False,
+                     formula1=f"=OFFSET($Q${FIRST},0,0,COUNTA($P${FIRST}:$P${LAST})+1,1)")
+dash.add_data_validation(dvi); dvi.add("B6")
 dash["E4"] = "(used when Period = Custom range)"
 dash["E4"].font = Font(italic=True, color="888888")
 
@@ -164,7 +176,8 @@ for r in range(FIRST, LAST + 1):
         11: f'IF(G{r}=0,0,J{r}/G{r})',
         12: f'IF(C{r}=0,"No sales",IF(D{r}<=0,0,ROUND(D{r}/(C{r}/$F$5),1)))',
     }
-    dash.cell(r, 1).fill = input_fill
+    dash.cell(r, 1, f'=IF($B$6="All items",IF($P{r}="","",$P{r}),IF(ROW()={FIRST},$B$6,""))')
+    dash.cell(r, 16).fill, dash.cell(r, 16).border = input_fill, box
     for c in range(1, 13):
         dash.cell(r, c).border = box
         if c > 1:
@@ -173,11 +186,13 @@ for r in range(FIRST, LAST + 1):
             if c == 12:
                 dash.cell(r, c).alignment = Alignment(horizontal="right")
 for r, name in enumerate(("Widget", "Gadget", "Gizmo"), FIRST):
-    dash.cell(r, 1, name)
+    dash.cell(r, 16, name)
 dash.column_dimensions["A"].width = 26
 for col in "BCDEFGHIJKL":
     dash.column_dimensions[col].width = 14
 dash.column_dimensions["N"].width = 16
+dash.column_dimensions["P"].width = 26
+dash.column_dimensions["Q"].width = 16
 dash.freeze_panes = f"B{FIRST}"
 
 red = Font(color="C00000", bold=True)
